@@ -10,14 +10,14 @@ import matplotlib.gridspec as gridspec
 import cartopy.crs as ccrs
 import os
 import cartopy.feature as cfeature
-
-
+import pandas as pd
 
 MODES = 6
 VAR = "z500"
 
-PATH = Path("/Users/gabrielepadovani/Downloads/2000-2010")
+PATH = Path("2000-2010")
 paths = list(PATH.rglob("*.nc"))
+targets = xr.open_zarr("targets_selected.zarr")
 
 all_gts = []
 for path in tqdm(paths): 
@@ -25,7 +25,10 @@ for path in tqdm(paths):
     valid_times = ds.time + ds.step
     ds = ds.assign_coords(valid_time=valid_times)
     ds = ds[VAR].stack(sample=("time", "step")).swap_dims({"sample": "valid_time"})
-    all_gts.append(ds - ds.isel(valid_time=0))
+    target = targets.sel(channel_out=VAR).sel(time=ds["valid_time"] + pd.Timedelta(hours=6), method="nearest")
+    target = target.to_dataarray().transpose('variable', 'face', 'height', 'width', 'valid_time').sel(variable='targets')
+    all_gts.append(ds - target)
+    # all_gts.append(ds - ds.isel(valid_time=0))
 all_gts = xr.concat(all_gts, dim="valid_time")
 
 def svds_on(ds): 
@@ -34,7 +37,7 @@ def svds_on(ds):
 
     ntime, faces, nlat, nlon = ds_mon_clim.shape
     data = np.reshape(ds_mon_clim.data, (ntime, faces*nlat*nlon))
-    u, s, v = svds(data, k=MODES)
+    u, s, v = svds(data.compute(), k=MODES)
     pcs = u*s 
     return pcs, v
 
@@ -56,7 +59,7 @@ os.makedirs(path_out, exist_ok=True)
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
-OUT_DIR   = "./error_monthly_anomalies"                        # directory for saved figures
+OUT_DIR   = "./error_global_alltimes"                        # directory for saved figures
 os.makedirs(OUT_DIR, exist_ok=True)
 EXTENT    = [-180, 180, -90, 90]       # [lon_min, lon_max, lat_min, lat_max]
 CMAP = "RdBu_r"

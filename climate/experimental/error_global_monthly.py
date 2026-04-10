@@ -6,43 +6,41 @@ from easygems.resample import HEALPixResampler, KDTreeResampler
 from easygems.show import map_show
 from pathlib import Path
 from tqdm import tqdm
+import pandas as pd
 
 MODES = 6
 VAR = "z500"
 
-PATH = Path("/Users/gabrielepadovani/Downloads/2000-2010")
+PATH = Path("2000-2010")
 paths = list(PATH.rglob("*.nc"))
+targets = xr.open_zarr("targets_selected.zarr")
 
 all_gts = []
-all_times = []
 for path in tqdm(paths): 
     ds = xr.open_dataset(path)
     valid_times = ds.time + ds.step
     ds = ds.assign_coords(valid_time=valid_times)
     ds = ds[VAR].stack(sample=("time", "step")).swap_dims({"sample": "valid_time"})
-    all_gts.append(ds - ds.isel(valid_time=0))
-    all_times.append(ds)
+    target = targets.sel(channel_out=VAR).sel(time=ds["valid_time"] + pd.Timedelta(hours=6), method="nearest")
+    target = target.to_dataarray().transpose('variable', 'face', 'height', 'width', 'valid_time').sel(variable='targets')
+    all_gts.append(ds - target)
 all_gts = xr.concat(all_gts, dim="valid_time")
-all_times = xr.concat(all_times, dim="valid_time")
 
-def svds_on_anomaly(ds): 
+def svds_on(ds): 
     ds = (ds - ds.min()) / (ds.max() - ds.min())
-    ds_mon_clim = all_times.groupby("valid_time.month").mean(dim=["valid_time"]) # Calculate the monthly climatology
-    ds_anomaly = ds.groupby("valid_time.month") - ds_mon_clim # Calculate the monthly anomalies from the climatology
-    ds_mon_clim = ds_anomaly.transpose("valid_time", 'face', 'height', 'width')
+    ds_mon_clim = ds.transpose("valid_time", 'face', 'height', 'width')
     ds_mon_clim = ds_mon_clim.groupby("valid_time.month")
 
     months = []
     for m, monthlydata in ds_mon_clim: 
         ntime, faces,  nlat, nlon = monthlydata.shape
         data = np.reshape(monthlydata.data, (ntime, faces*nlat*nlon))
-        if min(data.shape) < MODES: continue
-        u, s, v = svds(data, k=MODES)
+        u, s, v = svds(data.compute(), k=MODES)
         pcs = u*s 
         months.append((pcs, v))
     return months
 
-months = svds_on_anomaly(all_gts)
+months = svds_on(all_gts)
 
 ref_ds = xr.open_dataset("hpx64_ref_lat_lon.nc")
 lon = ref_ds["lon"].values.flatten()  # (12*64*64,)
@@ -50,7 +48,7 @@ lat = ref_ds["lat"].values.flatten()  # (12*64*64,)
 resampler = KDTreeResampler(lon=lon, lat=lat)
 
 import os
-path_out = os.path.basename(__file__)
+path_out = "./error_global_monthly"
 os.makedirs(path_out, exist_ok=True)
 
 # for i, (ds_anomaly, v) in enumerate(months): 

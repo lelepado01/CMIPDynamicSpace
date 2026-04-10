@@ -49,7 +49,7 @@ lat = ref_ds["lat"].values.flatten()  # (12*64*64,)
 resampler = KDTreeResampler(lon=lon, lat=lat)
 
 import os
-path_out = os.path.basename(__file__)
+path_out = "./gts_global_monthly_anomalies"
 os.makedirs(path_out, exist_ok=True)
 
 for i, (ds_anomaly, v) in enumerate(months): 

@@ -11,7 +11,7 @@ import cartopy.crs as ccrs
 import os
 import cartopy.feature as cfeature
 
-
+# THIS GOES OOM
 MODES = 6
 VAR = "z500"
 
@@ -25,7 +25,7 @@ for path in tqdm(paths):
     valid_times = ds.time + ds.step
     ds = ds.assign_coords(valid_time=valid_times)
     ds = ds[VAR].stack(sample=("time", "step")).swap_dims({"sample": "valid_time"})
-    all_gts.append(ds - ds.isel(valid_time=0))
+    all_gts.append(ds.isel(valid_time=0))
     all_times.append(ds)
 all_gts = xr.concat(all_gts, dim="valid_time")
 all_times = xr.concat(all_times, dim="valid_time")
@@ -50,8 +50,14 @@ lat = ref_ds["lat"].values.flatten()  # (12*64*64,)
 resampler = KDTreeResampler(lon=lon, lat=lat)
 
 import os
-path_out = os.path.basename(__file__)
+path_out = "./gts_global_alltime_anomalies"
 os.makedirs(path_out, exist_ok=True)
+
+# for mode in range(MODES): 
+#     im = map_show(v[mode], resampler=resampler, cmap="RdBu")
+#     plt.colorbar(im, orientation='horizontal', pad=0.05, fraction=0.05)
+#     plt.savefig(f"{path_out}/mode_{mode}.png", dpi=300)
+#     plt.close()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 OUT_DIR   = "./error_monthly_anomalies"                        # directory for saved figures
@@ -61,7 +67,7 @@ CMAP = "RdBu_r"
 
 MODE_LABELS = ["Mode " + str(i+1) for i in range(6)]
 fig = plt.figure(figsize=(12, 10))
-fig.suptitle(f"EOF on Error for Anomaly —  Yearly Cycle", fontsize=15, fontweight="bold", y=0.98)
+fig.suptitle(f"EOF on GT for Anomaly —  Yearly Cycle", fontsize=15, fontweight="bold", y=0.98)
 
 gs = gridspec.GridSpec(3, 2, figure=fig, hspace=0.1, wspace=0.05)
 
@@ -94,7 +100,7 @@ fig.colorbar(sm, cax=cbar_ax, orientation="horizontal", label=f"EOF Yearly ampli
 
 plt.tight_layout()
 
-out_path = f"{OUT_DIR}/eof_year.pdf"
+out_path = f"{OUT_DIR}/gts_alltime_anomalies.pdf"
 fig.savefig(out_path, dpi=300, bbox_inches="tight")
 print(f"Saved: {out_path}")
 

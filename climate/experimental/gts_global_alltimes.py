@@ -43,19 +43,8 @@ lon = ref_ds["lon"].values.flatten()  # (12*64*64,)
 lat = ref_ds["lat"].values.flatten()  # (12*64*64,)
 resampler = KDTreeResampler(lon=lon, lat=lat)
 
-import os
-path_out = os.path.basename(__file__)
-os.makedirs(path_out, exist_ok=True)
-
-# for mode in range(MODES): 
-#     im = map_show(v[mode], resampler=resampler, cmap="RdBu")
-#     plt.colorbar(im, orientation='horizontal', pad=0.05, fraction=0.05)
-#     plt.savefig(f"{path_out}/mode_{mode}.png", dpi=300)
-#     plt.close()
-
-
 # ── Config ────────────────────────────────────────────────────────────────────
-OUT_DIR   = "./error_monthly_anomalies"                        # directory for saved figures
+OUT_DIR   = "./gts_global_alltimes"                        # directory for saved figures
 os.makedirs(OUT_DIR, exist_ok=True)
 EXTENT    = [-180, 180, -90, 90]       # [lon_min, lon_max, lat_min, lat_max]
 CMAP = "RdBu_r"
@@ -97,7 +86,24 @@ plt.tight_layout()
 
 out_path = f"{OUT_DIR}/gts_alltime.pdf"
 fig.savefig(out_path, dpi=300, bbox_inches="tight")
-print(f"Saved: {out_path}")
-
 # plt.show()
 plt.close()
+
+v_reshaped = v.reshape(MODES, 12, 64, 64)
+ds_month = xr.Dataset(
+    data_vars={
+        "modes": (("mode", "face", "nlat", "nlon"), v_reshaped),
+        "pcs": (("sample", "mode"), ds_anomaly),
+    },
+    coords={
+        "mode": np.arange(MODES),
+        "face": np.arange(12),
+        "nlat": np.arange(64),
+        "nlon": np.arange(64),
+    }
+)
+
+ds_month.to_netcdf(f"{OUT_DIR}/eof_modes_seasonal.nc")
+
+print(f"Saved: {out_path}")
+

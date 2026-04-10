@@ -11,8 +11,8 @@ from easygems.resample import KDTreeResampler
 from easygems.show import map_show
 
 # ── Config ────────────────────────────────────────────────────────────────────
-NC_FILE   = "error_global_monthly_anomalies.py/eof_modes_seasonal.nc"   # update path if needed
-OUT_DIR   = "./error_monthly_anomalies"                        # directory for saved figures
+NC_FILE   = "error_global_monthly/eof_modes_seasonal.nc"   # update path if needed
+OUT_DIR   = NC_FILE.split("/")[0]                        # directory for saved figures
 os.makedirs(OUT_DIR, exist_ok=True)
 SAVE_FIGS = True                       # set False to only show interactively
 
@@ -35,8 +35,8 @@ nlat_vals  = ds.variables["nlat"][:]    # (64,)
 nlon_vals  = ds.variables["nlon"][:]    # (64,)
 ds.close()
 
-n_months, n_modes, n_face, n_nlat, n_nlon = modes_data.shape
 print(modes_data.shape)
+n_months, n_modes, n_face, n_nlat, n_nlon = modes_data.shape
 face_idx, nlat_idx, nlon_idx = np.meshgrid(
     face_vals, nlat_vals, nlon_vals, indexing="ij"
 )  # each shape (12, 64, 64)
@@ -57,7 +57,10 @@ for mode_idx in range(n_modes):
     mode_num = mode_idx + 1          # 1-based label
 
     fig = plt.figure(figsize=(14, 7))
-    fig.suptitle(f"EOF on Error for Anomaly, Mode {mode_num}  —  Seasonal Cycle (12 months)", fontsize=15, fontweight="bold", y=0.98)
+    what = NC_FILE.split("_")[0]
+    cond = NC_FILE.split("/")[0].split("_")
+    cond = cond[3] if len(cond) > 3 else ""
+    fig.suptitle(f"EOF on {what}{cond}, Mode {mode_num}  —  Seasonal Cycle (12 months)", fontsize=15, fontweight="bold", y=0.98)
 
     gs = gridspec.GridSpec(3, 4, figure=fig, hspace=0.01, wspace=0.05)
 
