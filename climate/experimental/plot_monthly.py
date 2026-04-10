@@ -6,42 +6,31 @@ import xarray as xr
 import cartopy.crs as ccrs
 import os
 import cartopy.feature as cfeature
-
 from easygems.resample import KDTreeResampler
 from easygems.show import map_show
 
-# ── Config ────────────────────────────────────────────────────────────────────
-NC_FILE   = "error_global_monthly/eof_modes_seasonal.nc"   # update path if needed
-OUT_DIR   = NC_FILE.split("/")[0]                        # directory for saved figures
+NC_FILE   = "error_global_monthly/eof_modes_seasonal.nc" 
+OUT_DIR   = NC_FILE.split("/")[0] 
 os.makedirs(OUT_DIR, exist_ok=True)
-SAVE_FIGS = True                       # set False to only show interactively
-
 MONTH_LABELS = [
     "Jan", "Feb", "Mar", "Apr",
     "May", "Jun", "Jul", "Aug",
     "Sep", "Oct", "Nov", "Dec",
 ]
 EXTENT    = [-180, 180, -90, 90]       # [lon_min, lon_max, lat_min, lat_max]
-
 CMAP = "RdBu_r"
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 ds = nc.Dataset(NC_FILE)
-
 modes_data = ds.variables["modes"][:]   # masked array, shape (12,6,12,64,64)
-
 face_vals  = ds.variables["face"][:]    # (12,)
 nlat_vals  = ds.variables["nlat"][:]    # (64,)
 nlon_vals  = ds.variables["nlon"][:]    # (64,)
 ds.close()
 
-print(modes_data.shape)
 n_months, n_modes, n_face, n_nlat, n_nlon = modes_data.shape
-face_idx, nlat_idx, nlon_idx = np.meshgrid(
-    face_vals, nlat_vals, nlon_vals, indexing="ij"
-)  # each shape (12, 64, 64)
+face_idx, nlat_idx, nlon_idx = np.meshgrid(face_vals, nlat_vals, nlon_vals, indexing="ij")  # each shape (12, 64, 64)
 
-# Flatten to 1-D for the resampler
 face_flat  = face_idx.ravel().astype(int)
 nlat_flat  = nlat_idx.ravel().astype(int)
 nlon_flat  = nlon_idx.ravel().astype(int)
@@ -51,10 +40,8 @@ lon = ref_ds["lon"].values.flatten()  # (12*64*64,)
 lat = ref_ds["lat"].values.flatten()  # (12*64*64,)
 resampler = KDTreeResampler(lon=lon, lat=lat)
 
-
-# ── Plot ──────────────────────────────────────────────────────────────────────
 for mode_idx in range(n_modes):
-    mode_num = mode_idx + 1          # 1-based label
+    mode_num = mode_idx + 1
 
     fig = plt.figure(figsize=(14, 7))
     what = NC_FILE.split("_")[0]
@@ -80,12 +67,7 @@ for mode_idx in range(n_modes):
         data_2d = modes_data[month_idx, mode_idx, :, :, :]   # (12,64,64)
         data_flat = data_2d.filled(np.nan).ravel()
 
-        map_show(
-            data_flat,
-            ax=ax,
-            cmap=CMAP,
-            resampler=resampler,
-        )
+        map_show(data_flat,ax=ax,cmap=CMAP,resampler=resampler)
 
         ax.set_title(MONTH_LABELS[month_idx], fontsize=10, pad=3)
         ax.set_xticks([])
@@ -99,12 +81,6 @@ for mode_idx in range(n_modes):
 
     plt.tight_layout()
 
-    if SAVE_FIGS:
-        out_path = f"{OUT_DIR}/eof_mode_{mode_num:02d}.pdf"
-        fig.savefig(out_path, dpi=300, bbox_inches="tight")
-        print(f"Saved: {out_path}")
-
-    # plt.show()
+    out_path = f"{OUT_DIR}/eof_mode_{mode_num:02d}.pdf"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close()
-
-print("Done.")
