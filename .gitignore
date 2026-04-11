@@ -8,3 +8,6 @@ all_zeros
 
 .DS_Store
 src/.DS_Store
+
+forecasts
+hpx64_1983-2017_3h_9varCoupledAtmos-sst.zarr
